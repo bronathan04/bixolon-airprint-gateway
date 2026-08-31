@@ -1,0 +1,146 @@
+#!/opt/venv/bin/python3
+"""
+CUPS filter for the Bixolon XD5-43T DHL-label queue.
+
+DHL "Paketmarke" PDFs are a full A4/Letter sheet with the content rotated
+90 degrees, split by a scissor-cut line into a top half (the actual
+shipping label) and a bottom half ("Sendungsinformation - fuer Ihre
+Unterlagen", a receipt copy that isn't meant to go on the parcel). This
+filter:
+  1. detects a full-sheet page and geometrically splits/rotates it to the
+     top half; for anything else, crops to the ink bounding box instead
+  2. rasterizes at 300dpi and fits the result onto an exact 4x6in /
+     1200x1800px canvas
+  3. emits one label via the printer's native SBPL command language
+
+See _common.py (same directory) for the shared PDF/PS input handling,
+rasterization, canvas fitting, and SBPL encoding used by both this filter
+and the generic bixolonplain queue.
+
+CUPS invokes this as:  bixolonzpl job-id user title copies options [file]
+stdin is used when no filename argument is given. Output (raw SBPL bytes)
+goes to stdout; the PPD declares the output mime type as
+application/vnd.cups-raw so CUPS forwards it untouched to the socket://
+backend.
+"""
+
+import io
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+import pikepdf
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as lib
+
+PAD_PT = 2.0  # small padding kept around the detected ink bounding box
+
+# Full-sheet sizes (points, +/- tolerance) that trigger the fixed
+# top-half-and-rotate split instead of an ink-bbox crop.
+FULL_SHEET_SIZES_PT = [(595.28, 841.89), (612, 792)]  # A4, US Letter
+SHEET_TOLERANCE_PT = 5.0
+HALF_SHEET_ROTATE = 90
+
+
+def is_full_sheet(mediabox):
+    x0, y0, x1, y1 = mediabox
+    w, h = x1 - x0, y1 - y0
+    for sw, sh in FULL_SHEET_SIZES_PT:
+        if abs(w - sw) < SHEET_TOLERANCE_PT and abs(h - sh) < SHEET_TOLERANCE_PT:
+            return True
+    return False
+
+
+def find_ink_bbox(pdf_bytes):
+    """Return list of (x0,y0,x1,y1) in points, one per page, from gs bbox device."""
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(pdf_bytes)
+        tmp_path = tmp.name
+    try:
+        proc = subprocess.run(
+            ["gs", "-dBATCH", "-dNOPAUSE", "-dQUIET", "-sDEVICE=bbox", "-f", tmp_path],
+            capture_output=True, text=True, timeout=60,
+        )
+        boxes = re.findall(
+            r"%%HiResBoundingBox:\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)",
+            proc.stderr,
+        )
+        return [tuple(float(v) for v in b) for b in boxes]
+    finally:
+        os.unlink(tmp_path)
+
+
+def top_half_rotated(pdf_bytes, page_index):
+    """Extract the top half of a full-sheet page and rotate it upright."""
+    src = pikepdf.open(io.BytesIO(pdf_bytes))
+    dst = pikepdf.new()
+    dst.pages.append(src.pages[page_index])
+    x0, y0, x1, y1 = [float(v) for v in dst.pages[0].mediabox]
+    mid = (y0 + y1) / 2
+    dst.pages[0].mediabox = [x0, mid, x1, y1]
+    if "/CropBox" in dst.pages[0]:
+        del dst.pages[0]["/CropBox"]
+    dst.pages[0]["/CropBox"] = [x0, mid, x1, y1]
+    dst.pages[0]["/Rotate"] = HALF_SHEET_ROTATE
+
+    buf = io.BytesIO()
+    dst.save(buf)
+    return buf.getvalue()
+
+
+def crop_page_to_pdf(pdf_bytes, page_index, bbox, media_fallback):
+    x0, y0, x1, y1 = bbox
+    if x1 - x0 < 1 or y1 - y0 < 1:
+        # degenerate/empty bbox (e.g. blank page) -> keep the full page
+        x0, y0, x1, y1 = media_fallback
+    x0 = max(media_fallback[0], x0 - PAD_PT)
+    y0 = max(media_fallback[1], y0 - PAD_PT)
+    x1 = min(media_fallback[2], x1 + PAD_PT)
+    y1 = min(media_fallback[3], y1 + PAD_PT)
+
+    src = pikepdf.open(io.BytesIO(pdf_bytes))
+    dst = pikepdf.new()
+    dst.pages.append(src.pages[page_index])
+    dst.pages[0].mediabox = [x0, y0, x1, y1]
+    if "/CropBox" in dst.pages[0]:
+        del dst.pages[0]["/CropBox"]
+    dst.pages[0]["/CropBox"] = [x0, y0, x1, y1]
+
+    buf = io.BytesIO()
+    dst.save(buf)
+    return buf.getvalue()
+
+
+def main():
+    pdf_bytes = lib.read_input_pdf()
+    src = pikepdf.open(io.BytesIO(pdf_bytes))
+    page_count = len(src.pages)
+    media_boxes = [tuple(float(v) for v in p.mediabox) for p in src.pages]
+    full_sheet = [is_full_sheet(mb) for mb in media_boxes]
+    src.close()
+
+    # Only run ink-bbox detection for pages that need it (not full sheets,
+    # which use a fixed geometric split instead).
+    bboxes = None
+    if not all(full_sheet):
+        bboxes = find_ink_bbox(pdf_bytes)
+        if len(bboxes) != page_count:
+            bboxes = media_boxes
+
+    out = sys.stdout.buffer
+    for i in range(page_count):
+        if full_sheet[i]:
+            cropped_pdf = top_half_rotated(pdf_bytes, i)
+        else:
+            cropped_pdf = crop_page_to_pdf(pdf_bytes, i, bboxes[i], media_boxes[i])
+        img = lib.rasterize(cropped_pdf)
+        canvas = lib.fit_to_canvas(img)
+        out.write(lib.image_to_sbpl_label(canvas))
+    out.flush()
+
+
+if __name__ == "__main__":
+    main()

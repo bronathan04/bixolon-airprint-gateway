@@ -1,0 +1,12 @@
+# Runtime config (contains the real printer IP/AirPrint names for the
+# deployed instance) -- not secret, just host-specific state, not source.
+config/*.json
+!config/config.example.json
+
+# Scratch/debug output from development
+tmp/
+
+__pycache__/
+*.pyc
+
+.DS_Store

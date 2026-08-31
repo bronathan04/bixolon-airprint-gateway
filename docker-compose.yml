@@ -1,0 +1,16 @@
+services:
+  bixolon-airprint-gateway:
+    build: .
+    image: bixolon-airprint-gateway:latest
+    container_name: bixolon-airprint-gateway
+    restart: unless-stopped
+    # Host networking is required: AirPrint discovery is mDNS/Bonjour
+    # (UDP 5353 multicast) and macOS also needs to reach CUPS's IPP port
+    # (631) directly on the Pi's real LAN address.
+    network_mode: host
+    volumes:
+      - ./config:/config
+    # NET_RAW is needed by avahi-daemon for multicast; harmless here since
+    # we already have full host network access via network_mode: host.
+    cap_add:
+      - NET_RAW

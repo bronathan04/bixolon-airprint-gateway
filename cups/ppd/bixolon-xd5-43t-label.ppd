@@ -1,0 +1,58 @@
+*PPD-Adobe: "4.3"
+*%  PPD for the Bixolon XD5-43T shipping-label gateway queue.
+*%  Declares A4 as the page size (matching DHL's source PDF) rather than
+*%  the physical 4x6in label: if this PPD only offered the label size,
+*%  macOS's AirPrint client would pre-scale/fit the whole source page down
+*%  onto that tiny paper size itself before the job ever reaches our
+*%  filter, crushing both halves of the DHL sheet into one dense, mostly
+*%  black mess. Declaring A4 makes macOS pass the page through unscaled so
+*%  the bixolonzpl filter can do the real crop/rotate/fit itself.
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageEncoding: ISOLatin1
+*LanguageVersion: English
+*PCFileName: "BIXLABEL.PPD"
+*Manufacturer: "Bixolon"
+*Product: "(XD5-43T)"
+*ModelName: "Bixolon XD5-43T Shipping Label"
+*ShortNickName: "Bixolon XD5-43T Label"
+*NickName: "Bixolon XD5-43T Shipping Label"
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*ColorDevice: False
+*DefaultColorSpace: Gray
+*FileSystem: False
+*Throughput: "1"
+*TTRasterizer: None
+*cupsVersion: 2.0
+*cupsManualCopies: True
+*cupsModelNumber: 1
+*cupsFilter2: "application/pdf application/vnd.cups-raw 0 bixolonzpl"
+*cupsFilter2: "application/postscript application/vnd.cups-raw 0 bixolonzpl"
+*cupsFilter2: "application/vnd.cups-postscript application/vnd.cups-raw 0 bixolonzpl"
+
+*OpenUI *PageSize: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: A4
+*PageSize A4/A4 (DHL label sheet): ""
+*PageSize w288h432/4x6in Label (102x152mm): ""
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: A4
+*PageRegion A4/A4 (DHL label sheet): ""
+*PageRegion w288h432/4x6in Label (102x152mm): ""
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: A4
+*ImageableArea A4/A4 (DHL label sheet): "0 0 595 842"
+*ImageableArea w288h432/4x6in Label (102x152mm): "0 0 288 432"
+
+*DefaultPaperDimension: A4
+*PaperDimension A4/A4 (DHL label sheet): "595 842"
+*PaperDimension w288h432/4x6in Label (102x152mm): "288 432"
+
+*DefaultFont: Courier
+*Font Courier: Standard "(002.004S)" Standard ROM
+*%*% End of PPD

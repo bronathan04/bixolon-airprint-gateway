@@ -1,0 +1,40 @@
+#!/opt/venv/bin/python3
+"""
+CUPS filter for the Bixolon XD5-43T generic "scale to fit" queue.
+
+For normal documents (A4, A5, whatever) rather than DHL labels: no
+cropping, no splitting, no rotation -- each page is just rasterized as-is
+and scaled down (preserving aspect ratio) to fit the 4x6in label, exactly
+like printing "shrink to fit page" on any ordinary printer.
+
+See _common.py (same directory) for the shared PDF/PS input handling,
+rasterization, canvas fitting, and SBPL encoding used by both this filter
+and the DHL-specific bixolonzpl queue.
+
+CUPS invokes this as: bixolonplain job-id user title copies options [file]
+stdin is used when no filename argument is given. Output (raw SBPL bytes)
+goes to stdout; the PPD declares the output mime type as
+application/vnd.cups-raw so CUPS forwards it untouched to the socket://
+backend.
+"""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as lib
+
+
+def main():
+    pdf_bytes = lib.read_input_pdf()
+    out = sys.stdout.buffer
+    for i in range(lib.page_count(pdf_bytes)):
+        page_pdf = lib.extract_page(pdf_bytes, i)
+        img = lib.rasterize(page_pdf)
+        canvas = lib.fit_to_canvas(img)
+        out.write(lib.image_to_sbpl_label(canvas))
+    out.flush()
+
+
+if __name__ == "__main__":
+    main()

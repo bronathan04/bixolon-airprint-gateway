@@ -1,0 +1,6 @@
+{
+  "printer_ip": "192.168.1.50",
+  "printer_port": 9100,
+  "dhl_airprint_name": "Bixolon DHL",
+  "plain_airprint_name": "Bixolon (Scale to Fit)"
+}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bixolon AirPrint Gateway</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; background: #fafafa; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.05rem; margin: 0 0 4px; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #fff; }
+    legend { font-weight: 600; padding: 0 6px; }
+    label { display: block; margin-top: 12px; font-size: 0.9rem; color: #444; }
+    input[type=text], input[type=number] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+    button { margin-top: 14px; padding: 8px 16px; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 0.95rem; cursor: pointer; }
+    button.secondary { background: #6b7280; margin-right: 8px; }
+    .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+    .flash.success { background: #dcfce7; color: #166534; }
+    .flash.error { background: #fee2e2; color: #991b1b; }
+    .hint { color: #777; font-size: 0.82rem; margin-top: 4px; }
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
+    .queue-test { border-top: 1px solid #eee; margin-top: 16px; padding-top: 16px; }
+    .queue-test:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>Bixolon XD5-43T &mdash; AirPrint Gateway</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" action="{{ url_for('save') }}">
+    <fieldset>
+      <legend>Printer</legend>
+
+      <label for="printer_ip">Printer IP address</label>
+      <div class="row">
+        <input type="text" id="printer_ip" name="printer_ip" value="{{ cfg.printer_ip }}" placeholder="192.168.1.50" required>
+        <input type="number" id="printer_port" name="printer_port" value="{{ cfg.printer_port }}" style="max-width:100px" required>
+      </div>
+      <div class="hint">Port is the printer's raw/JetDirect port &mdash; 9100 unless you've changed it. Both queues below share the same physical printer.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Two AirPrint printers</legend>
+
+      {% for key, q in queues.items() %}
+      <label for="{{ q.name_field }}">{{ q.label }}</label>
+      <input type="text" id="{{ q.name_field }}" name="{{ q.name_field }}" value="{{ cfg[q.name_field] }}" placeholder="{{ q.default_name }}" required>
+      {% endfor %}
+      <div class="hint">These are the names shown in the macOS AirPrint printer picker.</div>
+
+      <button type="submit">Save &amp; apply</button>
+    </fieldset>
+  </form>
+
+  <fieldset>
+    <legend>Test</legend>
+    <form method="post" action="{{ url_for('test_connect') }}" style="display:inline">
+      <button type="submit" class="secondary">Check connection</button>
+    </form>
+    <form method="post" action="{{ url_for('test_print') }}" style="display:inline">
+      <button type="submit" class="secondary">Send test label</button>
+    </form>
+
+    {% for key, q in queues.items() %}
+    <div class="queue-test">
+      <form method="post" action="{{ url_for('test_pdf', queue_key=key) }}" enctype="multipart/form-data">
+        <label for="pdf-{{ key }}">Print through the {{ q.label }} pipeline</label>
+        <input type="file" id="pdf-{{ key }}" name="pdf" accept="application/pdf" required style="margin-top:6px">
+        <button type="submit">Convert &amp; print</button>
+      </form>
+    </div>
+    {% endfor %}
+  </fieldset>
+
+  <p class="hint">
+    Once saved, print from your Mac to either printer like any AirPrint printer.
+    &ldquo;{{ queues.dhl.label }}&rdquo; crops the DHL label out of a full A4/A5 sheet and rotates it upright.
+    &ldquo;{{ queues.plain.label }}&rdquo; just shrinks whatever page you send (A4, A5, whatever) down to fit the label, unmodified otherwise.
+    CUPS queue names: <code>{{ queues.dhl.cups_name }}</code> and <code>{{ queues.plain.cups_name }}</code>.
+  </p>
+</body>
+</html>

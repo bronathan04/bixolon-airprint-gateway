@@ -1,0 +1,62 @@
+*PPD-Adobe: "4.3"
+*%  PPD for the Bixolon XD5-43T generic "scale to fit" queue.
+*%  Declares A4/A5/Letter as page sizes (matching normal source documents)
+*%  rather than the physical 4x6in label -- see bixolon-xd5-43t-label.ppd
+*%  for why: if this PPD only offered the label size, macOS's AirPrint
+*%  client would pre-scale the whole source page down onto that tiny paper
+*%  size itself before the job ever reaches our filter. Declaring the
+*%  document's own likely sizes makes macOS pass pages through unscaled so
+*%  the bixolonplain filter can do the real fit-to-label scaling itself.
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageEncoding: ISOLatin1
+*LanguageVersion: English
+*PCFileName: "BIXPLAIN.PPD"
+*Manufacturer: "Bixolon"
+*Product: "(XD5-43T)"
+*ModelName: "Bixolon XD5-43T Scale To Fit"
+*ShortNickName: "Bixolon XD5-43T Scale"
+*NickName: "Bixolon XD5-43T Scale To Fit"
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*ColorDevice: False
+*DefaultColorSpace: Gray
+*FileSystem: False
+*Throughput: "1"
+*TTRasterizer: None
+*cupsVersion: 2.0
+*cupsManualCopies: True
+*cupsModelNumber: 1
+*cupsFilter2: "application/pdf application/vnd.cups-raw 0 bixolonplain"
+*cupsFilter2: "application/postscript application/vnd.cups-raw 0 bixolonplain"
+*cupsFilter2: "application/vnd.cups-postscript application/vnd.cups-raw 0 bixolonplain"
+
+*OpenUI *PageSize: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: A4
+*PageSize A4/A4: ""
+*PageSize A5/A5: ""
+*PageSize Letter/US Letter: ""
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: A4
+*PageRegion A4/A4: ""
+*PageRegion A5/A5: ""
+*PageRegion Letter/US Letter: ""
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: A4
+*ImageableArea A4/A4: "0 0 595 842"
+*ImageableArea A5/A5: "0 0 420 595"
+*ImageableArea Letter/US Letter: "0 0 612 792"
+
+*DefaultPaperDimension: A4
+*PaperDimension A4/A4: "595 842"
+*PaperDimension A5/A5: "420 595"
+*PaperDimension Letter/US Letter: "612 792"
+
+*DefaultFont: Courier
+*Font Courier: Standard "(002.004S)" Standard ROM
+*%*% End of PPD
