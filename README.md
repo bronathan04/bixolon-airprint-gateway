@@ -1,5 +1,7 @@
 # Bixolon AirPrint Gateway
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Turns a Bixolon XD5-43T thermal label printer into two proper AirPrint
 targets on a Raspberry Pi (or any Docker host), without the
 "convert-on-a-Windows-PC" workaround:
